@@ -1,19 +1,23 @@
 package api
 
 import (
-	"log"
 	"net/http"
+	"os"
+
+	"github.com/rs/zerolog"
 
 	"github.com/gorilla/mux"
 )
 
 type APIServer struct {
-	addr  string
-	store Store
+	addr   string
+	store  Store
+	logger zerolog.Logger
 }
 
 func NewAPIServer(addr string, store Store) *APIServer {
-	return &APIServer{addr: addr, store: store}
+	logger := zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr}).With().Timestamp().Logger()
+	return &APIServer{addr: addr, store: store, logger: logger}
 }
 
 func (s *APIServer) Serve() {
@@ -22,5 +26,8 @@ func (s *APIServer) Serve() {
 
 	//registering the routes
 
-	log.Fatal(http.ListenAndServe(s.addr, subrouter))
+	s.logger.Info().Str("addr", s.addr).Msg("Starting API server")
+	if err := http.ListenAndServe(s.addr, subrouter); err != nil {
+		s.logger.Fatal().Err(err).Msg("Server stopped")
+	}
 }

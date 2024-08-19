@@ -2,9 +2,8 @@ package database
 
 import (
 	"Norvista/internal/models"
-	"fmt"
-	"log"
 
+	"github.com/rs/zerolog/log"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -16,10 +15,10 @@ type PostgresStorage struct {
 func NewPostgresStorage(connStr string) (*PostgresStorage, error) {
 	db, err := gorm.Open(postgres.Open(connStr), &gorm.Config{})
 	if err != nil {
-		log.Fatal("Unable to connect to database:", err)
+		log.Error().Err(err).Msg("Unable to connect to database")
 	}
 
-	fmt.Println("Connected to PostgreSQL!")
+	log.Info().Msg("Connected to PostgreSQL!")
 	return &PostgresStorage{db: db}, nil
 }
 
@@ -30,7 +29,9 @@ func (s *PostgresStorage) InitializeDatabase() (*gorm.DB, error) {
 		&models.Movie{},
 		&models.Showtime{},
 		&models.Reservation{}); err != nil {
+		log.Error().Err(err).Msg("Failed to migrate database schema")
 		return nil, err
 	}
+	log.Info().Msg("Database schema migrated successfully")
 	return s.db, nil
 }

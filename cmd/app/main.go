@@ -5,11 +5,20 @@ import (
 	"Norvista/internal/config"
 	"Norvista/internal/database"
 	"fmt"
-	"log"
+
+	"os"
+
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 func main() {
-	fmt.Println("Start Norvista project")
+
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+
+	log.Info().Msg("Starting Norvista project")
 	connStr := fmt.Sprintf("postgresql://%s:%s@%s/%s?sslmode=disable",
 		config.Envs.DBUser,
 		config.Envs.DBPassword,
@@ -18,15 +27,16 @@ func main() {
 	)
 	sqlStorage, err := database.NewPostgresStorage(connStr)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err).Msg("Failed to connect to database")
 	}
 
-	 db, err := sqlStorage.InitializeDatabase();
-	 if err != nil {
-		log.Fatal(err)
+	db, err := sqlStorage.InitializeDatabase()
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to initialize database")
 	}
 
 	store := api.NewStore(db)
 	apiServer := api.NewAPIServer(":8080", store)
+	log.Info().Msg("Starting API server on port 8080")
 	apiServer.Serve()
 }
