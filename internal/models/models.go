@@ -54,6 +54,13 @@ type Reservation struct {
 	Showtime   Showtime       `gorm:"foreignKey:ShowtimeID"`
 }
 
+
+type Response struct {
+	StatusCode int         `json:"statusCode"`
+	Message    string      `json:"message"`
+	Data       interface{} `json:"data,omitempty"` // Data is omitted if nil or empty
+}
+
 // Initialize the models in the same file
 func (user *User) BeforeCreate(tx *gorm.DB) (err error) {
 	user.ID = uuid.New().String()

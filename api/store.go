@@ -1,11 +1,15 @@
 package api
 
 import (
+	"Norvista/internal/models"
+	"time"
+
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
 type Store interface {
-	// Define your methods here
+	CreateUser(user *models.User) (*models.User, error)
 }
 
 type Storage struct {
@@ -16,4 +20,18 @@ func NewStore(db *gorm.DB) *Storage {
 	return &Storage{
 		db: db,
 	}
+}
+
+func (s *Storage) CreateUser(user *models.User) (*models.User, error) {
+	// Set default values before saving to the database
+	user.ID = uuid.New().String()
+	user.CreatedAt = time.Now()
+
+	// Use GORM to create the user in the database
+	if err := s.db.Create(user).Error; err != nil {
+		return nil, err
+	}
+
+	// Return the user and nil error if successful
+	return user, nil
 }

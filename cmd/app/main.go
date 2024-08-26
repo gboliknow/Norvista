@@ -19,7 +19,8 @@ func main() {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
 	log.Info().Msg("Starting Norvista project")
-	connStr := fmt.Sprintf("postgresql://%s:%s@%s/%s?sslmode=disable",
+	dsn := os.Getenv("DB_URL")
+	connStr := fmt.Sprintf(dsn,
 		config.Envs.DBUser,
 		config.Envs.DBPassword,
 		config.Envs.DBAddress,

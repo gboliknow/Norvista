@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
 
-	"github.com/gorilla/mux"
 )
 
 type APIServer struct {
@@ -21,13 +21,16 @@ func NewAPIServer(addr string, store Store) *APIServer {
 }
 
 func (s *APIServer) Serve() {
-	router := mux.NewRouter()
-	subrouter := router.PathPrefix("/api/v1").Subrouter()
+	router := gin.Default()
+	apiV1 := router.Group("/api/v1")
 
 	//registering the routes
+	userService := NewUserService(s.store)
+	userService.RegisterRoutes(apiV1)
+
 
 	s.logger.Info().Str("addr", s.addr).Msg("Starting API server")
-	if err := http.ListenAndServe(s.addr, subrouter); err != nil {
+	if err := http.ListenAndServe(s.addr, router); err != nil {
 		s.logger.Fatal().Err(err).Msg("Server stopped")
 	}
 }
