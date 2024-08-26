@@ -187,6 +187,15 @@ func validateUserPayload(user *models.User) error {
 	if err := validatePassword(user.Password); err != nil {
 		return err
 	}
+	validRoles := map[string]bool{
+		"user":  true,
+		"admin": true,
+		"guest": true,
+	}
+
+	if _, ok := validRoles[user.Role]; !ok {
+		return fmt.Errorf("invalid role: %s", user.Role)
+	}
 
 	return nil
 }

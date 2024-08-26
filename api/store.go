@@ -23,6 +23,10 @@ func NewStore(db *gorm.DB) *Storage {
 }
 
 func (s *Storage) CreateUser(user *models.User) (*models.User, error) {
+
+	if user.Role == "" {
+		user.Role = "user" // Default role
+	}
 	// Set default values before saving to the database
 	user.ID = uuid.New().String()
 	user.CreatedAt = time.Now()
