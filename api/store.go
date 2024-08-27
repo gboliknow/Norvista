@@ -10,6 +10,7 @@ import (
 
 type Store interface {
 	CreateUser(user *models.User) (*models.User, error)
+	FindUserByEmail(email string, user *models.User) error
 }
 
 type Storage struct {
@@ -38,4 +39,8 @@ func (s *Storage) CreateUser(user *models.User) (*models.User, error) {
 
 	// Return the user and nil error if successful
 	return user, nil
+}
+
+func (db *Storage) FindUserByEmail(email string, user *models.User) error {
+	return db.db.Where("email = ?", email).First(user).Error
 }

@@ -21,6 +21,18 @@ type User struct {
 	Address   string         `gorm:"type:varchar(255)"`
 }
 
+type UserResponse struct {
+	ID        string         `gorm:"primaryKey"`
+	Email     string         `gorm:"type:varchar(255);unique;not null"`
+	FirstName string         `gorm:"type:varchar(255);not null"`
+	LastName  string         `gorm:"type:varchar(255);not null"`
+	Role      string         `gorm:"type:varchar(50);not null"`
+	CreatedAt time.Time      `gorm:"index"`
+	DeletedAt gorm.DeletedAt `gorm:"index"`
+	Phone     string         `gorm:"type:varchar(20)"`
+	Address   string         `gorm:"type:varchar(255)"`
+}
+
 // Movie represents a movie model with UUID as the primary key.
 type Movie struct {
 	ID          string         `gorm:"primaryKey"`
@@ -54,11 +66,15 @@ type Reservation struct {
 	Showtime   Showtime       `gorm:"foreignKey:ShowtimeID"`
 }
 
-
 type Response struct {
 	StatusCode int         `json:"statusCode"`
 	Message    string      `json:"message"`
 	Data       interface{} `json:"data,omitempty"` // Data is omitted if nil or empty
+}
+
+type LoginRequest struct {
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required"`
 }
 
 // Initialize the models in the same file

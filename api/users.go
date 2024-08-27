@@ -10,11 +10,10 @@ import (
 	"gorm.io/gorm"
 )
 
-
 var (
-	errEmailRequired    = errors.New("email is required")
+	errEmailRequired     = errors.New("email is required")
 	errFirstNameRequired = errors.New("first name is required")
-	errLastNameRequired = errors.New("last name is required")
+	errLastNameRequired  = errors.New("last name is required")
 	errPasswordRequired  = errors.New("password is required")
 	errPasswordStrength  = errors.New("password must be at least 8 characters long and include at least one uppercase letter, one lowercase letter, one number, and one special character")
 )
@@ -29,6 +28,7 @@ func NewUserService(s Store) *UserService {
 
 func (s *UserService) RegisterRoutes(r *gin.RouterGroup) {
 	r.POST("/users/register", s.handleUserRegister)
+	r.POST("/users/login", s.handleUserLogin)
 }
 
 func (s *UserService) handleUserRegister(c *gin.Context) {
@@ -38,6 +38,9 @@ func (s *UserService) handleUserRegister(c *gin.Context) {
 		return
 	}
 
+	if payload.Role == "" {
+		payload.Role = "user"
+	}
 	if err := validateUserPayload(&payload); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -68,4 +71,51 @@ func (s *UserService) handleUserRegister(c *gin.Context) {
 	}
 
 	utility.WriteJSON(c.Writer, http.StatusCreated, "Successful", token)
+}
+
+func (s *UserService) handleUserLogin(c *gin.Context) {
+	var loginRequest models.LoginRequest
+	if err := c.ShouldBindJSON(&loginRequest); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
+		return
+	}
+
+	// Find the user by email
+	var user models.User
+	if err := s.store.FindUserByEmail(loginRequest.Email, &user); err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+		}
+		return
+	}
+
+	if !CheckPasswordHash(loginRequest.Password, user.Password) {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
+		return
+	}
+	// Generate JWT token
+	token, err := createAndSetAuthCookie(user.ID, c.Writer)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+		return
+	}
+
+	responseData := models.UserResponse{
+		ID:        user.ID,
+		FirstName: user.FirstName,
+		LastName:  user.LastName,
+		Email:     user.Email,
+		CreatedAt: user.CreatedAt,
+		Address:   user.Address,
+		Phone:     user.Phone,
+		Role:      user.Role,
+	}
+
+	// Return the user and token
+	c.JSON(http.StatusOK, gin.H{
+		"user":  responseData,
+		"token": token,
+	})
 }
