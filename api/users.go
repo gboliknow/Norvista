@@ -3,19 +3,10 @@ package api
 import (
 	"Norvista/internal/models"
 	"Norvista/internal/utility"
-	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
-)
-
-var (
-	errEmailRequired     = errors.New("email is required")
-	errFirstNameRequired = errors.New("first name is required")
-	errLastNameRequired  = errors.New("last name is required")
-	errPasswordRequired  = errors.New("password is required")
-	errPasswordStrength  = errors.New("password must be at least 8 characters long and include at least one uppercase letter, one lowercase letter, one number, and one special character")
 )
 
 type UserService struct {
@@ -29,6 +20,7 @@ func NewUserService(s Store) *UserService {
 func (s *UserService) RegisterRoutes(r *gin.RouterGroup) {
 	r.POST("/users/register", s.handleUserRegister)
 	r.POST("/users/login", s.handleUserLogin)
+	r.GET("/users/me", AuthMiddleware(), s.handleGetUserInfo)
 }
 
 func (s *UserService) handleUserRegister(c *gin.Context) {
@@ -118,4 +110,37 @@ func (s *UserService) handleUserLogin(c *gin.Context) {
 		"user":  responseData,
 		"token": token,
 	})
+}
+
+func (s *UserService) handleGetUserInfo(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "permission denied"})
+		return
+	}
+
+	user, err := s.store.FindUserByID(userID.(string))
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		}
+		return
+	}
+
+	responseData := models.UserResponse{
+		ID:        user.ID,
+		FirstName: user.FirstName,
+		LastName:  user.LastName,
+		Email:     user.Email,
+		CreatedAt: user.CreatedAt,
+		Address:   user.Address,
+		Phone:     user.Phone,
+		Role:      user.Role,
+	}
+
+	// Return the user data
+	utility.WriteJSON(c.Writer, http.StatusOK, "Fetched User", responseData)
+
 }
