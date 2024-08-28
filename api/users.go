@@ -142,7 +142,7 @@ func (s *UserService) handleGetUserInfo(c *gin.Context) {
 		Phone:     user.Phone,
 		Role:      user.Role,
 	}
-	utility.WriteJSON(c.Writer, http.StatusOK, "Fetched User", responseData)
+	utility.WriteJSON(c.Writer, http.StatusOK, "User retrieved successfully.", responseData)
 }
 
 func (s *UserService) handlePromoteToAdmin(c *gin.Context) {
@@ -228,5 +228,5 @@ func (s *UserService) handleGetAllUsers(c *gin.Context) {
 		})
 	}
 
-	utility.WriteJSON(c.Writer, http.StatusOK, "Fectched Users", responseData)
+	utility.WriteJSON(c.Writer, http.StatusOK, "Users retrieved successfully.", responseData)
 }
