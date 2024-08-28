@@ -23,6 +23,7 @@ func (s *UserService) RegisterRoutes(r *gin.RouterGroup) {
 	r.POST("/users/login", s.handleUserLogin)
 	r.GET("/users/me", AuthMiddleware(), s.handleGetUserInfo)
 	r.PUT("/users/promote", AuthMiddleware(), s.handlePromoteToAdmin)
+	r.GET("/users", AuthMiddleware(), s.handleGetAllUsers)
 }
 
 func (s *UserService) handleUserRegister(c *gin.Context) {
@@ -141,58 +142,91 @@ func (s *UserService) handleGetUserInfo(c *gin.Context) {
 		Phone:     user.Phone,
 		Role:      user.Role,
 	}
-
-	// Return the user data
 	utility.WriteJSON(c.Writer, http.StatusOK, "Fetched User", responseData)
 }
 
 func (s *UserService) handlePromoteToAdmin(c *gin.Context) {
-    // Get userID from the JWT claims set by the AuthMiddleware
-    requesterID, exists := c.Get("userID")
-    if !exists {
-        c.JSON(http.StatusUnauthorized, gin.H{"error": "permission denied"})
-        return
-    }
+	requesterID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "permission denied"})
+		return
+	}
 
-    // Get the requesting user's details
-    requester, err := s.store.FindUserByID(requesterID.(string))
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
-        return
-    }
+	requester, err := s.store.FindUserByID(requesterID.(string))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
 
-    // Check if the requester is an admin
-    if requester.Role != "admin" {
-        c.JSON(http.StatusForbidden, gin.H{"error": "only admins can promote other users"})
-        return
-    }
+	if requester.Role != "admin" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "only admins can promote other users"})
+		return
+	}
 
-    // Get the user to be promoted from the request body
-    var promoteRequest struct {
-        UserID string `json:"userID"`
-    }
-    if err := c.ShouldBindJSON(&promoteRequest); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request payload"})
-        return
-    }
+	var promoteRequest struct {
+		UserID string `json:"userID"`
+	}
+	if err := c.ShouldBindJSON(&promoteRequest); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request payload"})
+		return
+	}
 
-    // Find the user to be promoted
-    userToPromote, err := s.store.FindUserByID(promoteRequest.UserID)
-    if err != nil {
-        if errors.Is(err, gorm.ErrRecordNotFound) {
-            c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
-        } else {
-            c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
-        }
-        return
-    }
+	userToPromote, err := s.store.FindUserByID(promoteRequest.UserID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		}
+		return
+	}
 
-    // Promote the user to admin
-    userToPromote.Role = "admin"
-    if err := s.store.UpdateUser(userToPromote); err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to promote user to admin"})
-        return
-    }
+	userToPromote.Role = "admin"
+	if err := s.store.UpdateUser(userToPromote); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to promote user to admin"})
+		return
+	}
 
-    c.JSON(http.StatusOK, gin.H{"message": "user promoted to admin successfully"})
+	utility.WriteJSON(c.Writer, http.StatusOK, "user promoted to admin successfully", nil)
+}
+
+func (s *UserService) handleGetAllUsers(c *gin.Context) {
+	requesterID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "permission denied"})
+		return
+	}
+
+	requester, err := s.store.FindUserByID(requesterID.(string))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+
+	if requester.Role != "admin" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "only admins can access this route"})
+		return
+	}
+
+	users, err := s.store.GetAllUsers()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve users"})
+		return
+	}
+
+	var responseData []models.UserResponse
+	for _, user := range users {
+		responseData = append(responseData, models.UserResponse{
+			ID:        user.ID,
+			FirstName: user.FirstName,
+			LastName:  user.LastName,
+			Email:     user.Email,
+			CreatedAt: user.CreatedAt,
+			Address:   user.Address,
+			Phone:     user.Phone,
+			Role:      user.Role,
+		})
+	}
+
+	utility.WriteJSON(c.Writer, http.StatusOK, "Fectched Users", responseData)
 }

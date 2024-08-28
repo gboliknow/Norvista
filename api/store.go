@@ -12,6 +12,7 @@ type Store interface {
 	FindUserByEmail(email string, user *models.User) error
 	FindUserByID(userID string) (*models.User, error)
 	UpdateUser(user *models.User) error
+	GetAllUsers() ([]models.User, error)
 }
 
 type Storage struct {
@@ -49,4 +50,12 @@ func (s *Storage) FindUserByID(userID string) (*models.User, error) {
 
 func (s *Storage) UpdateUser(user *models.User) error {
 	return s.db.Save(user).Error
+}
+
+func (s *Storage) GetAllUsers() ([]models.User, error) {
+    var users []models.User
+    if err := s.db.Find(&users).Error; err != nil {
+        return nil, err
+    }
+    return users, nil
 }
