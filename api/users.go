@@ -204,7 +204,7 @@ func (s *UserService) handleGetAllUsers(c *gin.Context) {
 	}
 
 	if requester.Role != "admin" {
-		c.JSON(http.StatusForbidden, gin.H{"error": "only admins can access this route"})
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access Denied: Only admins are authorized to perform this action."})
 		return
 	}
 
