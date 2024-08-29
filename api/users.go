@@ -22,8 +22,14 @@ func (s *UserService) RegisterRoutes(r *gin.RouterGroup) {
 	r.POST("/users/register", s.handleUserRegister)
 	r.POST("/users/login", s.handleUserLogin)
 	r.GET("/users/me", AuthMiddleware(), s.handleGetUserInfo)
-	r.PUT("/users/promote", AuthMiddleware(), s.handlePromoteToAdmin)
-	r.GET("/users", AuthMiddleware(), s.handleGetAllUsers)
+
+	adminGroup := r.Group("/users")
+	adminGroup.Use(AuthMiddleware())
+	adminGroup.Use(RequireAdminMiddleware(s.store))
+	{
+		adminGroup.PUT("/promote", s.handlePromoteToAdmin)
+		adminGroup.GET("/", s.handleGetAllUsers)
+	}
 }
 
 func (s *UserService) handleUserRegister(c *gin.Context) {
@@ -146,23 +152,6 @@ func (s *UserService) handleGetUserInfo(c *gin.Context) {
 }
 
 func (s *UserService) handlePromoteToAdmin(c *gin.Context) {
-	requesterID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "permission denied"})
-		return
-	}
-
-	requester, err := s.store.FindUserByID(requesterID.(string))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
-		return
-	}
-
-	if requester.Role != "admin" {
-		c.JSON(http.StatusForbidden, gin.H{"error": "only admins can promote other users"})
-		return
-	}
-
 	var promoteRequest struct {
 		UserID string `json:"userID"`
 	}
@@ -191,23 +180,6 @@ func (s *UserService) handlePromoteToAdmin(c *gin.Context) {
 }
 
 func (s *UserService) handleGetAllUsers(c *gin.Context) {
-	requesterID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "permission denied"})
-		return
-	}
-
-	requester, err := s.store.FindUserByID(requesterID.(string))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
-		return
-	}
-
-	if requester.Role != "admin" {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Access Denied: Only admins are authorized to perform this action."})
-		return
-	}
-
 	users, err := s.store.GetAllUsers()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve users"})

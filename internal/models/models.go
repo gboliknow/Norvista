@@ -38,20 +38,23 @@ type Movie struct {
 	ID          string         `gorm:"primaryKey"`
 	Title       string         `gorm:"type:varchar(255);not null"`
 	Description string         `gorm:"type:text"`
+	Genre       string         `gorm:"type:varchar(100);not null"`
+	PosterURL   string         `gorm:"type:varchar(255)"`
 	ReleaseDate string         `gorm:"type:date"`
 	CreatedAt   time.Time      `gorm:"index"`
 	DeletedAt   gorm.DeletedAt `gorm:"index"`
+	Showtimes   []Showtime     `gorm:"foreignKey:MovieID"`
 }
 
 // Showtime represents a showtime model with UUID as the primary key.
 type Showtime struct {
 	ID        string         `gorm:"primaryKey"`
-	MovieID   string         `gorm:"type:uuid;not null"`
-	StartTime string         `gorm:"type:timestamp;not null"`
-	EndTime   string         `gorm:"type:timestamp;not null"`
+	MovieID   string         `gorm:"type:uuid;not null"`      // Foreign key to Movie
+	StartTime time.Time      `gorm:"type:timestamp;not null"` // Using time.Time for accurate timestamp representation
+	EndTime   time.Time      `gorm:"type:timestamp;not null"`
 	CreatedAt time.Time      `gorm:"index"`
 	DeletedAt gorm.DeletedAt `gorm:"index"`
-	Movie     Movie          `gorm:"foreignKey:MovieID"`
+	Movie     Movie          `gorm:"foreignKey:MovieID"` // Association to Movie
 }
 
 // Reservation represents a reservation model with UUID as the primary key.
