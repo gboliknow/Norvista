@@ -168,6 +168,30 @@ func AuthMiddleware() gin.HandlerFunc {
 	}
 }
 
+func RequireAdminMiddleware(store Store) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		requesterID, exists := c.Get("userID")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "permission denied"})
+			c.Abort()
+			return
+		}
+		requester, err := store.FindUserByID(requesterID.(string))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+			c.Abort()
+			return
+		}
+
+		if requester.Role != "admin" {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Access Denied: Only admins are authorized to perform this action."})
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}
 
 var (
 	errEmailRequired     = errors.New("email is required")

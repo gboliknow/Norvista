@@ -3,6 +3,7 @@ package api
 import (
 	"Norvista/internal/models"
 	"Norvista/internal/utility"
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -21,6 +22,14 @@ func (s *UserService) RegisterRoutes(r *gin.RouterGroup) {
 	r.POST("/users/register", s.handleUserRegister)
 	r.POST("/users/login", s.handleUserLogin)
 	r.GET("/users/me", AuthMiddleware(), s.handleGetUserInfo)
+
+	adminGroup := r.Group("/users")
+	adminGroup.Use(AuthMiddleware())
+	adminGroup.Use(RequireAdminMiddleware(s.store))
+	{
+		adminGroup.PUT("/promote", s.handlePromoteToAdmin)
+		adminGroup.GET("/", s.handleGetAllUsers)
+	}
 }
 
 func (s *UserService) handleUserRegister(c *gin.Context) {
@@ -139,8 +148,57 @@ func (s *UserService) handleGetUserInfo(c *gin.Context) {
 		Phone:     user.Phone,
 		Role:      user.Role,
 	}
+	utility.WriteJSON(c.Writer, http.StatusOK, "User retrieved successfully.", responseData)
+}
 
-	// Return the user data
-	utility.WriteJSON(c.Writer, http.StatusOK, "Fetched User", responseData)
+func (s *UserService) handlePromoteToAdmin(c *gin.Context) {
+	var promoteRequest struct {
+		UserID string `json:"userID"`
+	}
+	if err := c.ShouldBindJSON(&promoteRequest); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request payload"})
+		return
+	}
 
+	userToPromote, err := s.store.FindUserByID(promoteRequest.UserID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		}
+		return
+	}
+
+	userToPromote.Role = "admin"
+	if err := s.store.UpdateUser(userToPromote); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to promote user to admin"})
+		return
+	}
+
+	utility.WriteJSON(c.Writer, http.StatusOK, "user promoted to admin successfully", nil)
+}
+
+func (s *UserService) handleGetAllUsers(c *gin.Context) {
+	users, err := s.store.GetAllUsers()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve users"})
+		return
+	}
+
+	var responseData []models.UserResponse
+	for _, user := range users {
+		responseData = append(responseData, models.UserResponse{
+			ID:        user.ID,
+			FirstName: user.FirstName,
+			LastName:  user.LastName,
+			Email:     user.Email,
+			CreatedAt: user.CreatedAt,
+			Address:   user.Address,
+			Phone:     user.Phone,
+			Role:      user.Role,
+		})
+	}
+
+	utility.WriteJSON(c.Writer, http.StatusOK, "Users retrieved successfully.", responseData)
 }

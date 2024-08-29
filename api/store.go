@@ -3,7 +3,6 @@ package api
 import (
 	"Norvista/internal/models"
 	"time"
-
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -12,6 +11,8 @@ type Store interface {
 	CreateUser(user *models.User) (*models.User, error)
 	FindUserByEmail(email string, user *models.User) error
 	FindUserByID(userID string) (*models.User, error)
+	UpdateUser(user *models.User) error
+	GetAllUsers() ([]models.User, error)
 }
 
 type Storage struct {
@@ -25,20 +26,14 @@ func NewStore(db *gorm.DB) *Storage {
 }
 
 func (s *Storage) CreateUser(user *models.User) (*models.User, error) {
-
 	if user.Role == "" {
-		user.Role = "user" // Default role
+		user.Role = "user"
 	}
-	// Set default values before saving to the database
 	user.ID = uuid.New().String()
 	user.CreatedAt = time.Now()
-
-	// Use GORM to create the user in the database
 	if err := s.db.Create(user).Error; err != nil {
 		return nil, err
 	}
-
-	// Return the user and nil error if successful
 	return user, nil
 }
 
@@ -51,4 +46,16 @@ func (s *Storage) FindUserByID(userID string) (*models.User, error) {
 		return nil, err
 	}
 	return &user, nil
+}
+
+func (s *Storage) UpdateUser(user *models.User) error {
+	return s.db.Save(user).Error
+}
+
+func (s *Storage) GetAllUsers() ([]models.User, error) {
+    var users []models.User
+    if err := s.db.Find(&users).Error; err != nil {
+        return nil, err
+    }
+    return users, nil
 }

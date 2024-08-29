@@ -29,6 +29,9 @@ func (s *APIServer) Serve() {
 	userService.RegisterRoutes(apiV1)
 
 
+	movieService := NewMovieService(s.store)
+	movieService.MoviesRoutes(apiV1)
+
 	s.logger.Info().Str("addr", s.addr).Msg("Starting API server")
 	if err := http.ListenAndServe(s.addr, router); err != nil {
 		s.logger.Fatal().Err(err).Msg("Server stopped")
