@@ -20,6 +20,10 @@ type Store interface {
 	GetAllMovies() ([]models.Movie, error)
 	GetMovieByID(movieID string) (*models.Movie, error)
 	DeleteMovie(movieID string) error
+	CreateShowtime(showtime *models.Showtime) error
+	GetShowtimeByID(showtimeID string, showtime *models.Showtime) error 
+	DeleteShowtime(showtimeID string) error 
+	GetAllShowtimes(showtimes *[]models.Showtime) error
 }
 
 type Storage struct {
@@ -79,7 +83,6 @@ func (s *Storage) CreateMovie(movie *models.Movie) (*models.Movie, error) {
 	return movie, nil
 }
 
-// UpdateMovie updates the details of an existing movie.
 func (s *Storage) UpdateMovie(movie *models.Movie) error {
 	return s.db.Save(movie).Error
 }
@@ -110,3 +113,28 @@ func (s *Storage) DeleteMovie(movieID string) error {
 	}
 	return nil
 }
+
+func (s *Storage) CreateShowtime(showtime *models.Showtime) error {
+	showtime.ID = uuid.New().String()
+	return s.db.Create(showtime).Error
+}
+
+func (s *Storage) GetShowtimeByID(showtimeID string, showtime *models.Showtime) error {
+	return s.db.Preload("Movie").Where("id = ?", showtimeID).First(showtime).Error
+}
+
+func (s *Storage) DeleteShowtime(showtimeID string) error {
+	var showtime models.Showtime
+	if err := s.db.Where("id = ?", showtimeID).First(&showtime).Error; err != nil {
+		return err
+	}
+	if err := s.db.Delete(&showtime).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Storage) GetAllShowtimes(showtimes *[]models.Showtime) error {
+    return s.db.Preload("Movie").Find(showtimes).Error
+}
+

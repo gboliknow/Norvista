@@ -239,4 +239,25 @@ var (
 	errDescriptionRequired = errors.New("description is required")
 	errGenreRequired       = errors.New("genre is required")
 	errReleaseDateRequired = errors.New("release date is required and must be in the format YYYY-MM-DD")
+	errMovieIDRequired = errors.New("movie ID is required")
+	errStartTimeRequired = errors.New("start time is required and must be in the format YYYY-MM-DDTHH:MM:SSZ")
+	errEndTimeRequired   = errors.New("end time is required and must be in the format YYYY-MM-DDTHH:MM:SSZ")
+
 )
+
+
+func validateShowtime(showtime *models.Showtime) error {
+	if showtime.MovieID == "" {
+		return errMovieIDRequired
+	}
+
+	if showtime.StartTime.IsZero() {
+		return errStartTimeRequired
+	}
+
+	if showtime.EndTime.IsZero() {
+		return errEndTimeRequired
+	}
+	return nil
+}
+

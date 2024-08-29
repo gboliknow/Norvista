@@ -18,16 +18,23 @@ func NewMovieService(s Store) *MovieService {
 }
 
 func (s *MovieService) MoviesRoutes(r *gin.RouterGroup) {
-	adminGroup := r.Group("/movies")
-	adminGroup.Use(AuthMiddleware())
-	adminGroup.Use(RequireAdminMiddleware(s.store))
+	movieGroup := r.Group("/movies")
+	showtimeGroup := r.Group("/showtimes")
+	movieGroup.Use(AuthMiddleware())
+	movieGroup.Use(RequireAdminMiddleware(s.store))
+	showtimeGroup.Use(AuthMiddleware())
+	showtimeGroup.Use(RequireAdminMiddleware(s.store))
 	{
-		adminGroup.POST("/", s.handleCreateMovie)
-		adminGroup.PUT("/:id", s.handleUpdateMovie)
-		adminGroup.DELETE("/:id", s.handleDeleteMovie)
+		movieGroup.POST("/", s.handleCreateMovie)
+		movieGroup.PUT("/:id", s.handleUpdateMovie)
+		movieGroup.DELETE("/:id", s.handleDeleteMovie)
+		showtimeGroup.POST("/", s.handleCreateShowtime)
+		showtimeGroup.DELETE("/:id", s.handleDeleteShowtime)
 	}
 	r.GET("/movies", s.handleGetAllMovies)
 	r.GET("/movies/:id", s.handleGetMovie)
+	r.GET("/showtimes", s.handleGetAllShowtimes)
+	r.GET("/showtimes/:id", s.handleGetShowtime)
 }
 
 func (s *MovieService) handleCreateMovie(c *gin.Context) {
@@ -61,7 +68,6 @@ func (s *MovieService) handleUpdateMovie(c *gin.Context) {
 		}
 		return
 	}
-
 	existingMovie.ID = movieID
 	if err := c.ShouldBindJSON(&existingMovie); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
@@ -114,5 +120,83 @@ func (s *MovieService) handleGetMovie(c *gin.Context) {
 	}
 
 	utility.WriteJSON(c.Writer, http.StatusCreated, "Movie Fetched successfully", movie)
+}
 
+func (s *MovieService) handleCreateShowtime(c *gin.Context) {
+	var showtime models.Showtime
+	if err := c.ShouldBindJSON(&showtime); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload. 'movie_id', 'start_time', and 'end_time' are required."})
+		return
+	}
+
+	if err := validateShowtime(&showtime); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if _, err := s.store.GetMovieByID(showtime.MovieID); err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Movie not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+		}
+		return
+	}
+
+	if err := s.store.CreateShowtime(&showtime); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create showtime"})
+		return
+	}
+
+	var createdShowtime models.Showtime
+	if err := s.store.GetShowtimeByID(showtime.ID, &createdShowtime); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch showtime"})
+		return
+	}
+
+	utility.WriteJSON(c.Writer, http.StatusCreated, "Showtime Created successfully", createdShowtime)
+}
+
+
+
+func (s *MovieService) handleDeleteShowtime(c *gin.Context) {
+	showtimeID := c.Param("id")
+
+	err := s.store.DeleteShowtime(showtimeID)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Showtime not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error deleting Showtime"})
+		}
+		return
+	}
+
+	utility.WriteJSON(c.Writer, http.StatusCreated, "Showtime deleted successfully", nil)
+}
+
+func (s *MovieService) handleGetAllShowtimes(c *gin.Context) {
+	var showtimes []models.Showtime
+	if err := s.store.GetAllShowtimes(&showtimes); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch showtimes"})
+		return
+	}
+
+	utility.WriteJSON(c.Writer, http.StatusCreated, "Showtime fetched successfully", showtimes)
+}
+
+func (s *MovieService) handleGetShowtime(c *gin.Context) {
+	showtimeID := c.Param("id")
+	var showtime models.Showtime
+
+	if err := s.store.GetShowtimeByID(showtimeID, &showtime); err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Showtime not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch showtime"})
+		}
+		return
+	}
+
+	utility.WriteJSON(c.Writer, http.StatusCreated, "Showtime fetched successfully", showtime)
 }
