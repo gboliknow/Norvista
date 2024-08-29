@@ -3,6 +3,7 @@ package api
 import (
 	"Norvista/internal/models"
 	"time"
+
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -13,6 +14,12 @@ type Store interface {
 	FindUserByID(userID string) (*models.User, error)
 	UpdateUser(user *models.User) error
 	GetAllUsers() ([]models.User, error)
+
+	CreateMovie(movie *models.Movie) (*models.Movie, error)
+	UpdateMovie(movie *models.Movie) error
+	GetAllMovies() ([]models.Movie, error)
+	GetMovieByID(movieID string) (*models.Movie, error)
+	DeleteMovie(movieID string) error
 }
 
 type Storage struct {
@@ -25,6 +32,7 @@ func NewStore(db *gorm.DB) *Storage {
 	}
 }
 
+// Auth
 func (s *Storage) CreateUser(user *models.User) (*models.User, error) {
 	if user.Role == "" {
 		user.Role = "user"
@@ -53,9 +61,52 @@ func (s *Storage) UpdateUser(user *models.User) error {
 }
 
 func (s *Storage) GetAllUsers() ([]models.User, error) {
-    var users []models.User
-    if err := s.db.Find(&users).Error; err != nil {
-        return nil, err
-    }
-    return users, nil
+	var users []models.User
+	if err := s.db.Find(&users).Error; err != nil {
+		return nil, err
+	}
+	return users, nil
+}
+
+//Movies
+
+func (s *Storage) CreateMovie(movie *models.Movie) (*models.Movie, error) {
+	movie.ID = uuid.New().String()
+	movie.CreatedAt = time.Now()
+	if err := s.db.Create(movie).Error; err != nil {
+		return nil, err
+	}
+	return movie, nil
+}
+
+// UpdateMovie updates the details of an existing movie.
+func (s *Storage) UpdateMovie(movie *models.Movie) error {
+	return s.db.Save(movie).Error
+}
+
+func (s *Storage) GetAllMovies() ([]models.Movie, error) {
+	var movies []models.Movie
+	if err := s.db.Find(&movies).Error; err != nil {
+		return nil, err
+	}
+	return movies, nil
+}
+
+func (s *Storage) GetMovieByID(movieID string) (*models.Movie, error) {
+	var movie models.Movie
+	if err := s.db.Preload("Showtimes").First(&movie, "id = ?", movieID).Error; err != nil {
+		return nil, err
+	}
+	return &movie, nil
+}
+
+func (s *Storage) DeleteMovie(movieID string) error {
+	var movie models.Movie
+	if err := s.db.Where("id = ?", movieID).First(&movie).Error; err != nil {
+		return err
+	}
+	if err := s.db.Delete(&movie).Error; err != nil {
+		return err
+	}
+	return nil
 }

@@ -114,6 +114,42 @@ func validateUserPayload(user *models.User) error {
 
 	return nil
 }
+
+func validateMoviePayload(movie *models.Movie) error {
+	if movie.Title == "" {
+		return errTitleRequired
+	}
+	if movie.Description == "" {
+		return errDescriptionRequired
+	}
+
+	if movie.Genre == "" {
+		return errGenreRequired
+	}
+
+	if movie.ReleaseDate == "" {
+
+		return errReleaseDateRequired
+	}
+	validGenres := map[string]bool{
+		"Action":          true,
+		"Comedy":          true,
+		"Drama":           true,
+		"Horror":          true,
+		"Romance":         true,
+		"Sci-Fi":          true,
+		"Documentary":     true,
+		"Adventure":       true,
+		"Thriller":        true,
+		"Mystery":        true,
+		"Science Fiction": true,
+	}
+
+	if _, ok := validGenres[movie.Genre]; !ok {
+		return fmt.Errorf("invalid genre: %s", movie.Genre)
+	}
+	return nil
+}
 func createAndSetAuthCookie(userID string, w http.ResponseWriter) (string, error) {
 	secret := []byte(config.Envs.JWTSecret)
 	token, err := CreateJWT(secret, userID)
@@ -194,9 +230,13 @@ func RequireAdminMiddleware(store Store) gin.HandlerFunc {
 }
 
 var (
-	errEmailRequired     = errors.New("email is required")
-	errFirstNameRequired = errors.New("first name is required")
-	errLastNameRequired  = errors.New("last name is required")
-	errPasswordRequired  = errors.New("password is required")
-	errPasswordStrength  = errors.New("password must be at least 8 characters long and include at least one uppercase letter, one lowercase letter, one number, and one special character")
+	errEmailRequired       = errors.New("email is required")
+	errFirstNameRequired   = errors.New("first name is required")
+	errLastNameRequired    = errors.New("last name is required")
+	errPasswordRequired    = errors.New("password is required")
+	errPasswordStrength    = errors.New("password must be at least 8 characters long and include at least one uppercase letter, one lowercase letter, one number, and one special character")
+	errTitleRequired       = errors.New("title is required")
+	errDescriptionRequired = errors.New("description is required")
+	errGenreRequired       = errors.New("genre is required")
+	errReleaseDateRequired = errors.New("release date is required and must be in the format YYYY-MM-DD")
 )
