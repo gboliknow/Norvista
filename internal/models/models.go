@@ -113,3 +113,26 @@ func (showtime *Showtime) BeforeCreate(tx *gorm.DB) (err error) {
 // 	reservation.ID = uuid.New().String()
 // 	return
 // }
+
+
+
+type MovieUpdateResponse struct {
+    ID          string         `json:"ID"`
+    Title       string         `json:"Title"`
+    Description string         `json:"Description"`
+    Genre       string         `json:"Genre"`
+    PosterURL   string         `json:"PosterURL"`
+    ReleaseDate string         `json:"ReleaseDate"`
+    CreatedAt   time.Time      `json:"CreatedAt"`
+    DeletedAt   *time.Time     `json:"DeletedAt,omitempty"`
+    Showtimes   []ShowtimeLite `json:"Showtimes"` // Custom struct without nested Movie
+}
+
+type ShowtimeLite struct {
+    ID        string     `json:"ID"`
+    MovieID   string     `json:"MovieID"`
+    StartTime time.Time  `json:"StartTime"`
+    EndTime   time.Time  `json:"EndTime"`
+    CreatedAt time.Time  `json:"CreatedAt"`
+    DeletedAt *time.Time `json:"DeletedAt,omitempty"`
+}

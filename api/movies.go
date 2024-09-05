@@ -30,6 +30,7 @@ func (s *MovieService) MoviesRoutes(r *gin.RouterGroup) {
 		movieGroup.DELETE("/:id", s.handleDeleteMovie)
 		showtimeGroup.POST("/", s.handleCreateShowtime)
 		showtimeGroup.DELETE("/:id", s.handleDeleteShowtime)
+		showtimeGroup.PUT("/:id", s.handleUpdateShowtime)
 	}
 	r.GET("/movies", s.handleGetAllMovies)
 	r.GET("/movies/:id", s.handleGetMovie)
@@ -59,16 +60,19 @@ func (s *MovieService) handleCreateMovie(c *gin.Context) {
 
 func (s *MovieService) handleUpdateMovie(c *gin.Context) {
 	movieID := c.Param("id")
+
 	existingMovie, err := s.store.GetMovieByID(movieID)
 	if err != nil {
+		status := http.StatusInternalServerError
+		message := "Internal server error"
 		if err == gorm.ErrRecordNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Movie not found"})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+			status = http.StatusNotFound
+			message = "Movie not found"
 		}
+		c.JSON(status, gin.H{"error": message})
 		return
 	}
-	existingMovie.ID = movieID
+
 	if err := c.ShouldBindJSON(&existingMovie); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
 		return
@@ -79,7 +83,8 @@ func (s *MovieService) handleUpdateMovie(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, existingMovie)
+	response := createMovieUpdateResponse(existingMovie)
+	utility.WriteJSON(c.Writer, http.StatusOK, "Movie updated successfully", response)
 }
 
 func (s *MovieService) handleDeleteMovie(c *gin.Context) {
@@ -127,7 +132,7 @@ func (s *MovieService) handleCreateShowtime(c *gin.Context) {
 
 	// Bind JSON data to ShowtimeRequest struct
 	if err := c.ShouldBindJSON(&showtimeRequest); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload. 'movie_id', 'start_time', and 'end_time' are required."})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload. 'movie_id', 'start_time', and 'end_time' are required." + err.Error()})
 		return
 	}
 
@@ -162,8 +167,9 @@ func (s *MovieService) handleCreateShowtime(c *gin.Context) {
 	}
 
 	// Fetch the created showtime for confirmation
-	var createdShowtime models.Showtime
-	if err := s.store.GetShowtimeByID(showtime.ID, &createdShowtime); err != nil {
+
+	createdShowtime, err := s.store.GetShowtimeByID(showtime.ID)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch showtime"})
 		return
 	}
@@ -199,9 +205,8 @@ func (s *MovieService) handleGetAllShowtimes(c *gin.Context) {
 
 func (s *MovieService) handleGetShowtime(c *gin.Context) {
 	showtimeID := c.Param("id")
-	var showtime models.Showtime
-
-	if err := s.store.GetShowtimeByID(showtimeID, &showtime); err != nil {
+	showtime, err := s.store.GetShowtimeByID(showtimeID)
+	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Showtime not found"})
 		} else {
@@ -211,4 +216,75 @@ func (s *MovieService) handleGetShowtime(c *gin.Context) {
 	}
 
 	utility.WriteJSON(c.Writer, http.StatusCreated, "Showtime fetched successfully", showtime)
+}
+
+func (s *MovieService) handleUpdateShowtime(c *gin.Context) {
+	// Get the showtime ID from the URL parameters
+	showtimeID := c.Param("id")
+	existingShowtime, err := s.store.GetShowtimeByID(showtimeID)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Showtime not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+		}
+		return
+	}
+
+	oldMovieID := existingShowtime.MovieID
+	if err := c.ShouldBindJSON(&existingShowtime); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
+		return
+	}
+	if existingShowtime.MovieID != oldMovieID {
+		_, err := s.store.GetMovieByID(existingShowtime.MovieID)
+		if err != nil {
+			if err == gorm.ErrRecordNotFound {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid MovieID"})
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+			return
+		}
+	}
+
+	if err := s.store.UpdateShowtime(existingShowtime); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update showtime"})
+		return
+	}
+
+	response := models.ShowtimeLite{
+		ID:        existingShowtime.ID,
+		MovieID:   existingShowtime.MovieID,
+		StartTime: existingShowtime.StartTime,
+		EndTime:   existingShowtime.EndTime,
+		CreatedAt: existingShowtime.CreatedAt,
+		DeletedAt: &existingShowtime.DeletedAt.Time,
+	}
+	utility.WriteJSON(c.Writer, http.StatusOK, "Showtime edited successfully", response)
+}
+
+func createMovieUpdateResponse(movie *models.Movie) models.MovieUpdateResponse {
+	response := models.MovieUpdateResponse{
+		ID:          movie.ID,
+		Title:       movie.Title,
+		Description: movie.Description,
+		Genre:       movie.Genre,
+		PosterURL:   movie.PosterURL,
+		ReleaseDate: movie.ReleaseDate,
+		CreatedAt:   movie.CreatedAt,
+		DeletedAt:   nil,
+	}
+
+	for _, showtime := range movie.Showtimes {
+		response.Showtimes = append(response.Showtimes, models.ShowtimeLite{
+			ID:        showtime.ID,
+			MovieID:   showtime.MovieID,
+			StartTime: showtime.StartTime,
+			EndTime:   showtime.EndTime,
+			CreatedAt: showtime.CreatedAt,
+			DeletedAt: &showtime.DeletedAt.Time,
+		})
+	}
+	return response
 }
