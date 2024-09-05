@@ -7,7 +7,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// User represents a user model with UUID as the primary key.
 type User struct {
 	ID        string         `gorm:"primaryKey"`
 	Email     string         `gorm:"type:varchar(255);unique;not null"`
@@ -33,7 +32,6 @@ type UserResponse struct {
 	Address   string         `gorm:"type:varchar(255)"`
 }
 
-// Movie represents a movie model with UUID as the primary key.
 type Movie struct {
 	ID          string         `gorm:"primaryKey"`
 	Title       string         `gorm:"type:varchar(255);not null"`
@@ -43,31 +41,46 @@ type Movie struct {
 	ReleaseDate string         `gorm:"type:date"`
 	CreatedAt   time.Time      `gorm:"index"`
 	DeletedAt   gorm.DeletedAt `gorm:"index"`
-	Showtimes   []Showtime     `gorm:"foreignKey:MovieID"`
+	Showtimes   []Showtime     `gorm:"foreignKey:MovieID"` // One-to-many relationship
 }
 
-// Showtime represents a showtime model with UUID as the primary key.
+// Showtime model
 type Showtime struct {
 	ID        string         `gorm:"primaryKey"`
-	MovieID   string         `gorm:"type:uuid;not null"`      // Foreign key to Movie
-	StartTime time.Time      `gorm:"type:timestamp;not null"` // Using time.Time for accurate timestamp representation
+	MovieID   string         `gorm:"type:uuid;not null"` // Foreign key to Movie
+	StartTime time.Time      `gorm:"type:timestamp;not null"`
 	EndTime   time.Time      `gorm:"type:timestamp;not null"`
 	CreatedAt time.Time      `gorm:"index"`
 	DeletedAt gorm.DeletedAt `gorm:"index"`
-	Movie     Movie          `gorm:"foreignKey:MovieID"` // Association to Movie
+	Movie     Movie          `gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"` // Movie association
 }
 
-// Reservation represents a reservation model with UUID as the primary key.
-type Reservation struct {
-	ID         string         `gorm:"primaryKey"`
-	UserID     string         `gorm:"type:uuid;not null"`
-	ShowtimeID string         `gorm:"type:uuid;not null"`
-	Seats      int            `gorm:"type:int;not null"`
-	CreatedAt  time.Time      `gorm:"index"`
-	DeletedAt  gorm.DeletedAt `gorm:"index"`
-	User       User           `gorm:"foreignKey:UserID"`
-	Showtime   Showtime       `gorm:"foreignKey:ShowtimeID"`
+type ShowtimeRequest struct {
+	MovieID   string    `json:"movieId" binding:"required"`
+	StartTime time.Time `json:"startTime" binding:"required"`
+	EndTime   time.Time `json:"endTime" binding:"required"`
 }
+
+// type Seat struct {
+// 	ID         string `gorm:"primaryKey"`
+// 	ShowtimeID string `gorm:"type:uuid;not null"`
+// 	Number     string `gorm:"not null"`
+// 	IsReserved bool   `gorm:"default:false"`
+// 	CreatedAt  time.Time
+// 	DeletedAt  gorm.DeletedAt
+// }
+
+// type Reservation struct {
+// 	ID         string         `gorm:"primaryKey"`
+// 	UserID     string         `gorm:"type:uuid;not null"`
+// 	ShowtimeID string         `gorm:"type:uuid;not null"`
+// 	Seats      []Seat         `gorm:"many2many:reservation_seats;"`
+// 	TotalPrice float64        `gorm:"not null"`
+// 	CreatedAt  time.Time      `gorm:"index"`
+// 	DeletedAt  gorm.DeletedAt `gorm:"index"`
+// 	User       User           `gorm:"foreignKey:UserID"`
+// 	Showtime   Showtime       `gorm:"foreignKey:ShowtimeID"`
+// }
 
 type Response struct {
 	StatusCode int         `json:"statusCode"`
@@ -96,7 +109,7 @@ func (showtime *Showtime) BeforeCreate(tx *gorm.DB) (err error) {
 	return
 }
 
-func (reservation *Reservation) BeforeCreate(tx *gorm.DB) (err error) {
-	reservation.ID = uuid.New().String()
-	return
-}
+// func (reservation *Reservation) BeforeCreate(tx *gorm.DB) (err error) {
+// 	reservation.ID = uuid.New().String()
+// 	return
+// }

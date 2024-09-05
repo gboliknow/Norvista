@@ -246,7 +246,7 @@ var (
 )
 
 
-func validateShowtime(showtime *models.Showtime) error {
+func validateShowtime(showtime *models.ShowtimeRequest) error {
 	if showtime.MovieID == "" {
 		return errMovieIDRequired
 	}

@@ -123,18 +123,23 @@ func (s *MovieService) handleGetMovie(c *gin.Context) {
 }
 
 func (s *MovieService) handleCreateShowtime(c *gin.Context) {
-	var showtime models.Showtime
-	if err := c.ShouldBindJSON(&showtime); err != nil {
+	var showtimeRequest models.ShowtimeRequest
+
+	// Bind JSON data to ShowtimeRequest struct
+	if err := c.ShouldBindJSON(&showtimeRequest); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload. 'movie_id', 'start_time', and 'end_time' are required."})
 		return
 	}
 
-	if err := validateShowtime(&showtime); err != nil {
+	// Validate the showtime request
+	if err := validateShowtime(&showtimeRequest); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if _, err := s.store.GetMovieByID(showtime.MovieID); err != nil {
+	// Ensure the movie exists
+	movie, err := s.store.GetMovieByID(showtimeRequest.MovieID)
+	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Movie not found"})
 		} else {
@@ -143,21 +148,28 @@ func (s *MovieService) handleCreateShowtime(c *gin.Context) {
 		return
 	}
 
+	// Create a new Showtime instance
+	showtime := models.Showtime{
+		MovieID:   movie.ID, // Use the movie ID directly
+		StartTime: showtimeRequest.StartTime,
+		EndTime:   showtimeRequest.EndTime,
+	}
+
+	// Save the showtime in the database
 	if err := s.store.CreateShowtime(&showtime); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create showtime"})
 		return
 	}
 
+	// Fetch the created showtime for confirmation
 	var createdShowtime models.Showtime
 	if err := s.store.GetShowtimeByID(showtime.ID, &createdShowtime); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch showtime"})
 		return
 	}
 
-	utility.WriteJSON(c.Writer, http.StatusCreated, "Showtime Created successfully", createdShowtime)
+	utility.WriteJSON(c.Writer, http.StatusCreated, "Showtime created successfully", createdShowtime)
 }
-
-
 
 func (s *MovieService) handleDeleteShowtime(c *gin.Context) {
 	showtimeID := c.Param("id")
