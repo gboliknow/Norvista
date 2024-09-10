@@ -21,10 +21,20 @@ type Store interface {
 	GetMovieByID(movieID string) (*models.Movie, error)
 	DeleteMovie(movieID string) error
 	CreateShowtime(showtime *models.Showtime) error
-    GetShowtimeByID(showtimeID string) (*models.Showtime, error)
+	GetShowtimeByID(showtimeID string) (*models.Showtime, error)
 	DeleteShowtime(showtimeID string) error
 	GetAllShowtimes(showtimes *[]models.Showtime) error
 	UpdateShowtime(showtime *models.Showtime) error
+
+	//reservation
+	CreateSeats(seats []models.Seat) error
+	GetSeatsByShowtimeID(showtimeID string) ([]models.Seat, error)
+	CreateReservation(reservation *models.Reservation) error
+	GetSeatByID(seatID string) (*models.Seat, error)
+	ReserveSeat(seatID string) error
+	GetReservationsByUser(userID string) ([]models.Reservation, error)
+	GetReservationsByShowtime(showtimeID string) ([]models.Reservation, error)
+	GetSeatBySeatNumber(seatNumber string) (*models.Seat, error)
 }
 
 type Storage struct {
@@ -145,5 +155,55 @@ func (s *Storage) GetAllShowtimes(showtimes *[]models.Showtime) error {
 }
 
 func (s *Storage) UpdateShowtime(showtime *models.Showtime) error {
-    return s.db.Save(showtime).Error
+	return s.db.Save(showtime).Error
+}
+
+// reservation
+func (s *Storage) CreateSeats(seats []models.Seat) error {
+	return s.db.Create(&seats).Error
+}
+
+func (s *Storage) GetSeatsByShowtimeID(showtimeID string) ([]models.Seat, error) {
+	var seats []models.Seat
+	if err := s.db.Where("showtime_id = ?", showtimeID).Find(&seats).Error; err != nil {
+		return nil, err
+	}
+	return seats, nil
+}
+
+func (s *Storage) GetSeatByID(seatID string) (*models.Seat, error) {
+	var seat models.Seat
+	if err := s.db.Where("id = ?", seatID).First(&seat).Error; err != nil {
+		return nil, err
+	}
+	return &seat, nil
+}
+
+func (s *Storage) GetSeatBySeatNumber(seatNumber string) (*models.Seat, error) {
+	var seat models.Seat
+	if err := s.db.Where("seat_number = ?", seatNumber).First(&seat).Error; err != nil {
+		return nil, err
+	}
+	return &seat, nil
+}
+
+func (s *Storage) GetReservationsByShowtime(showtimeID string) ([]models.Reservation, error) {
+	var reservations []models.Reservation
+	err := s.db.Where("showtime_id = ?", showtimeID).Find(&reservations).Error
+	return reservations, err
+}
+
+func (s *Storage) GetReservationsByUser(userID string) ([]models.Reservation, error) {
+	var reservations []models.Reservation
+
+	err := s.db.Where("user_id = ?", userID).Preload("Showtime").Preload("Seat").Find(&reservations).Error
+	return reservations, err
+}
+
+func (s *Storage) ReserveSeat(seatID string) error {
+	return s.db.Model(&models.Seat{}).Where("id = ?", seatID).Update("is_reserved", true).Error
+}
+
+func (s *Storage) CreateReservation(reservation *models.Reservation) error {
+	return s.db.Create(reservation).Error
 }

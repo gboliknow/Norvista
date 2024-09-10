@@ -3,9 +3,13 @@ package api
 import (
 	"Norvista/internal/models"
 	"Norvista/internal/utility"
+	"fmt"
+
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+
 	"gorm.io/gorm"
 )
 
@@ -166,15 +170,38 @@ func (s *MovieService) handleCreateShowtime(c *gin.Context) {
 		return
 	}
 
-	// Fetch the created showtime for confirmation
+	numSeats := 100 // Set this dynamically or as needed
+	var seats []models.Seat
+	for i := 1; i <= numSeats; i++ {
+		seat := models.Seat{
+			ID:         uuid.New().String(),
+			ShowtimeID: showtime.ID,
+			SeatNumber: fmt.Sprintf("Seat-%d", i),
+			IsReserved: false,
+		}
+		seats = append(seats, seat)
+	}
 
+	if err := s.store.CreateSeats(seats); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create seats"})
+		return
+	}
 	createdShowtime, err := s.store.GetShowtimeByID(showtime.ID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch showtime"})
 		return
 	}
 
-	utility.WriteJSON(c.Writer, http.StatusCreated, "Showtime created successfully", createdShowtime)
+	response := models.ShowtimeLite{
+		ID:        createdShowtime.ID,
+		MovieID:   createdShowtime.MovieID,
+		StartTime: createdShowtime.StartTime,
+		EndTime:   createdShowtime.EndTime,
+		CreatedAt: createdShowtime.CreatedAt,
+		DeletedAt: &createdShowtime.DeletedAt.Time,
+	}
+
+	utility.WriteJSON(c.Writer, http.StatusCreated, "Showtime and seats created successfully", response)
 }
 
 func (s *MovieService) handleDeleteShowtime(c *gin.Context) {

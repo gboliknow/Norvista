@@ -261,3 +261,16 @@ func validateShowtime(showtime *models.ShowtimeRequest) error {
 	return nil
 }
 
+
+func ValidateReservationRequest(r *models.Reservation) error {
+	
+	if r.ShowtimeID == "" {
+		return errors.New("showtime_id is required")
+	}
+
+	if len(r.SeatID) == 0 {
+		return errors.New("at least one seat_id is required")
+	}
+
+	return nil
+}

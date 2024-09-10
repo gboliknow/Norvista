@@ -61,26 +61,27 @@ type ShowtimeRequest struct {
 	EndTime   time.Time `json:"endTime" binding:"required"`
 }
 
-// type Seat struct {
-// 	ID         string `gorm:"primaryKey"`
-// 	ShowtimeID string `gorm:"type:uuid;not null"`
-// 	Number     string `gorm:"not null"`
-// 	IsReserved bool   `gorm:"default:false"`
-// 	CreatedAt  time.Time
-// 	DeletedAt  gorm.DeletedAt
-// }
+type Seat struct {
+	ID         string         `gorm:"primaryKey"`
+	ShowtimeID string         `gorm:"type:uuid;not null"` // Foreign key to Showtime
+	SeatNumber string         `gorm:"type:varchar(10);not null"`
+	IsReserved bool           `gorm:"default:false"`
+	CreatedAt  time.Time      `gorm:"index"`
+	DeletedAt  gorm.DeletedAt `gorm:"index"`
+	Showtime   Showtime       `gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"` // Showtime association
+}
 
-// type Reservation struct {
-// 	ID         string         `gorm:"primaryKey"`
-// 	UserID     string         `gorm:"type:uuid;not null"`
-// 	ShowtimeID string         `gorm:"type:uuid;not null"`
-// 	Seats      []Seat         `gorm:"many2many:reservation_seats;"`
-// 	TotalPrice float64        `gorm:"not null"`
-// 	CreatedAt  time.Time      `gorm:"index"`
-// 	DeletedAt  gorm.DeletedAt `gorm:"index"`
-// 	User       User           `gorm:"foreignKey:UserID"`
-// 	Showtime   Showtime       `gorm:"foreignKey:ShowtimeID"`
-// }
+type Reservation struct {
+	ID         string         `gorm:"primaryKey"`
+	UserID     string         `gorm:"type:uuid;not null"` // Foreign key to User
+	ShowtimeID string         `gorm:"type:uuid;not null"` // Foreign key to Showtime
+	SeatID     string         `gorm:"type:uuid;not null"` // Foreign key to Seat
+	CreatedAt  time.Time      `gorm:"index"`
+	DeletedAt  gorm.DeletedAt `gorm:"index"`
+	User       User           `gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"` // User association
+	Showtime   Showtime       `gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"` // Showtime association
+	Seat       Seat           `gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"` // Seat association
+}
 
 type Response struct {
 	StatusCode int         `json:"statusCode"`
@@ -114,25 +115,37 @@ func (showtime *Showtime) BeforeCreate(tx *gorm.DB) (err error) {
 // 	return
 // }
 
-
-
 type MovieUpdateResponse struct {
-    ID          string         `json:"ID"`
-    Title       string         `json:"Title"`
-    Description string         `json:"Description"`
-    Genre       string         `json:"Genre"`
-    PosterURL   string         `json:"PosterURL"`
-    ReleaseDate string         `json:"ReleaseDate"`
-    CreatedAt   time.Time      `json:"CreatedAt"`
-    DeletedAt   *time.Time     `json:"DeletedAt,omitempty"`
-    Showtimes   []ShowtimeLite `json:"Showtimes"` // Custom struct without nested Movie
+	ID          string         `json:"ID"`
+	Title       string         `json:"Title"`
+	Description string         `json:"Description"`
+	Genre       string         `json:"Genre"`
+	PosterURL   string         `json:"PosterURL"`
+	ReleaseDate string         `json:"ReleaseDate"`
+	CreatedAt   time.Time      `json:"CreatedAt"`
+	DeletedAt   *time.Time     `json:"DeletedAt,omitempty"`
+	Showtimes   []ShowtimeLite `json:"Showtimes"` // Custom struct without nested Movie
 }
 
 type ShowtimeLite struct {
-    ID        string     `json:"ID"`
-    MovieID   string     `json:"MovieID"`
-    StartTime time.Time  `json:"StartTime"`
-    EndTime   time.Time  `json:"EndTime"`
-    CreatedAt time.Time  `json:"CreatedAt"`
-    DeletedAt *time.Time `json:"DeletedAt,omitempty"`
+	ID        string     `json:"ID"`
+	MovieID   string     `json:"MovieID"`
+	StartTime time.Time  `json:"StartTime"`
+	EndTime   time.Time  `json:"EndTime"`
+	CreatedAt time.Time  `json:"CreatedAt"`
+	DeletedAt *time.Time `json:"DeletedAt,omitempty"`
+}
+
+
+type SeatLite struct {
+	ID         string         `gorm:"primaryKey"`
+	ShowtimeID string         `gorm:"type:uuid;not null"` // Foreign key to Showtime
+	SeatNumber string         `gorm:"type:varchar(10);not null"`
+	IsReserved bool           `gorm:"default:false"`
+	CreatedAt  time.Time      `gorm:"index"`
+	DeletedAt  gorm.DeletedAt `gorm:"index"` // Showtime association
+}
+type ReservationRequest struct {
+	ShowtimeID string   `json:"showtimeID" binding:"required"` // Showtime ID
+	SeatNumbers []string `json:"seatNumbers" binding:"required"` // Array of seat numbers
 }
