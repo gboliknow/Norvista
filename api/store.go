@@ -195,8 +195,7 @@ func (s *Storage) GetReservationsByShowtime(showtimeID string) ([]models.Reserva
 
 func (s *Storage) GetReservationsByUser(userID string) ([]models.Reservation, error) {
 	var reservations []models.Reservation
-
-	err := s.db.Where("user_id = ?", userID).Preload("Showtime").Preload("Seat").Find(&reservations).Error
+	err := s.db.Where("user_id = ?", userID).Find(&reservations).Error
 	return reservations, err
 }
 

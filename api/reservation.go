@@ -113,7 +113,11 @@ func (s *ReservationService) getUserReservations(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve reservations"})
 		return
 	}
-	utility.WriteJSON(c.Writer, http.StatusOK, "Reservations fetched successfully", reservations)
+	reservationLite := make([]models.ReservationLite, len(reservations))
+	for i, reservation := range reservations {
+		reservationLite[i] = ConvertToReservationLite(reservation)
+	}
+	utility.WriteJSON(c.Writer, http.StatusOK, "Reservations fetched successfully", reservationLite)
 }
 
 func (s *ReservationService) getReservationsByShowtime(c *gin.Context) {
@@ -123,7 +127,11 @@ func (s *ReservationService) getReservationsByShowtime(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve reservations"})
 		return
 	}
-	utility.WriteJSON(c.Writer, http.StatusOK, "Reservations fetched successfully", reservations)
+	reservationLite := make([]models.ReservationLite, len(reservations))
+	for i, reservation := range reservations {
+		reservationLite[i] = ConvertToReservationLite(reservation)
+	}
+	utility.WriteJSON(c.Writer, http.StatusOK, "Reservations fetched successfully", reservationLite)
 }
 
 func ConvertToSeatLite(seat models.Seat) models.SeatLite {
@@ -134,5 +142,16 @@ func ConvertToSeatLite(seat models.Seat) models.SeatLite {
 		IsReserved: seat.IsReserved,
 		CreatedAt:  seat.CreatedAt,
 		DeletedAt:  seat.DeletedAt,
+	}
+}
+
+func ConvertToReservationLite(reservation models.Reservation) models.ReservationLite {
+	return models.ReservationLite{
+		ID:         reservation.ID,
+		ShowtimeID: reservation.ShowtimeID,
+		UserID:     reservation.UserID,
+		SeatID:     reservation.SeatID,
+		CreatedAt:  reservation.CreatedAt,
+		DeletedAt:  reservation.DeletedAt,
 	}
 }

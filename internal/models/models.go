@@ -149,3 +149,12 @@ type ReservationRequest struct {
 	ShowtimeID string   `json:"showtimeID" binding:"required"` // Showtime ID
 	SeatNumbers []string `json:"seatNumbers" binding:"required"` // Array of seat numbers
 }
+
+type ReservationLite struct {
+	ID         string         `gorm:"primaryKey"`
+	UserID     string         `gorm:"type:uuid;not null"` // Foreign key to User
+	ShowtimeID string         `gorm:"type:uuid;not null"` // Foreign key to Showtime
+	SeatID     string         `gorm:"type:uuid;not null"` // Foreign key to Seat
+	CreatedAt  time.Time      `gorm:"index"`
+	DeletedAt  gorm.DeletedAt `gorm:"index"`
+}
