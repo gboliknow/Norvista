@@ -35,6 +35,7 @@ type Store interface {
 	GetReservationsByUser(userID string) ([]models.Reservation, error)
 	GetReservationsByShowtime(showtimeID string) ([]models.Reservation, error)
 	GetSeatBySeatNumber(seatNumber string) (*models.Seat, error)
+	CancelReservation(reservationID string) error
 }
 
 type Storage struct {
@@ -195,7 +196,8 @@ func (s *Storage) GetReservationsByShowtime(showtimeID string) ([]models.Reserva
 
 func (s *Storage) GetReservationsByUser(userID string) ([]models.Reservation, error) {
 	var reservations []models.Reservation
-	err := s.db.Where("user_id = ?", userID).Find(&reservations).Error
+	//confirmed it avoids the "N+1 query problem,"
+	err := s.db.Preload("User").Preload("Seat").Preload("Showtime").Where("user_id = ?", userID).Find(&reservations).Error
 	return reservations, err
 }
 
@@ -205,4 +207,30 @@ func (s *Storage) ReserveSeat(seatID string) error {
 
 func (s *Storage) CreateReservation(reservation *models.Reservation) error {
 	return s.db.Create(reservation).Error
+}
+
+func (s *Storage) CancelReservation(reservationID string) error {
+	tx := s.db.Begin()
+	var reservation models.Reservation
+	if err := tx.Where("id = ?", reservationID).First(&reservation).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if err := tx.Delete(&reservation).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if err := tx.Model(&models.Seat{}).Where("id = ?", reservation.SeatID).Update("is_reserved", false).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return err
+	}
+
+	return nil
+
 }

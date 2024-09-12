@@ -157,4 +157,7 @@ type ReservationLite struct {
 	SeatID     string         `gorm:"type:uuid;not null"` // Foreign key to Seat
 	CreatedAt  time.Time      `gorm:"index"`
 	DeletedAt  gorm.DeletedAt `gorm:"index"`
+	UserName   string    `json:"userName"`     // User's name for display
+	SeatNumber string    `json:"seatNumber"`   // Seat number
+	Showtime   time.Time `json:"showtime"`
 }

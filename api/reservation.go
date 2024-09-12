@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type ReservationService struct {
@@ -27,6 +28,7 @@ func (s *ReservationService) ReservationRoutes(r *gin.RouterGroup) {
 	{
 		reservationGroup.GET("/me", s.getUserReservations)
 		reservationGroup.POST("/", s.handleReserveSeats)
+		reservationGroup.DELETE("/:id", s.cancelReservation)
 	}
 
 	//for admin
@@ -34,7 +36,7 @@ func (s *ReservationService) ReservationRoutes(r *gin.RouterGroup) {
 	adminReservationGroup.Use(AuthMiddleware())
 	adminReservationGroup.Use(RequireAdminMiddleware(s.store))
 	{
-		adminReservationGroup.POST("/:id", s.getReservationsByShowtime)
+		adminReservationGroup.GET("/:id", s.getReservationsByShowtime)
 	}
 
 	//for unautheticated users
@@ -121,7 +123,7 @@ func (s *ReservationService) getUserReservations(c *gin.Context) {
 }
 
 func (s *ReservationService) getReservationsByShowtime(c *gin.Context) {
-	showtimeID := c.Param("showtimeID")
+	showtimeID := c.Param("id")
 	reservations, err := s.store.GetReservationsByShowtime(showtimeID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve reservations"})
@@ -131,7 +133,22 @@ func (s *ReservationService) getReservationsByShowtime(c *gin.Context) {
 	for i, reservation := range reservations {
 		reservationLite[i] = ConvertToReservationLite(reservation)
 	}
-	utility.WriteJSON(c.Writer, http.StatusOK, "Reservations fetched successfully", reservationLite)
+	utility.WriteJSON(c.Writer, http.StatusOK, "Showtime Reservations fetched successfully", reservationLite)
+}
+
+func (s *ReservationService) cancelReservation(c *gin.Context) {
+	reservationID := c.Param("id")
+	err := s.store.CancelReservation(reservationID)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Reservation not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to find reservation"})
+		}
+		return
+	}
+
+	utility.WriteJSON(c.Writer, http.StatusOK, "Reservation successfully canceled", nil)
 }
 
 func ConvertToSeatLite(seat models.Seat) models.SeatLite {
@@ -153,5 +170,8 @@ func ConvertToReservationLite(reservation models.Reservation) models.Reservation
 		SeatID:     reservation.SeatID,
 		CreatedAt:  reservation.CreatedAt,
 		DeletedAt:  reservation.DeletedAt,
+		UserName:   fmt.Sprintf("%s %s", reservation.User.FirstName, reservation.User.LastName),
+		SeatNumber: reservation.Seat.SeatNumber,
+		Showtime:   reservation.Showtime.StartTime,
 	}
 }
