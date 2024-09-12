@@ -2,6 +2,7 @@ package api
 
 import (
 	"Norvista/internal/models"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -215,6 +216,10 @@ func (s *Storage) CancelReservation(reservationID string) error {
 	if err := tx.Where("id = ?", reservationID).First(&reservation).Error; err != nil {
 		tx.Rollback()
 		return err
+	}
+
+	if time.Until(reservation.Showtime.StartTime) > 24*time.Hour {
+		return fmt.Errorf("cancellation allowed only for events within 24 hours")
 	}
 
 	if err := tx.Delete(&reservation).Error; err != nil {
