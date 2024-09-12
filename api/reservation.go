@@ -9,7 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"gorm.io/gorm"
+
 )
 
 type ReservationService struct {
@@ -139,14 +139,19 @@ func (s *ReservationService) getReservationsByShowtime(c *gin.Context) {
 func (s *ReservationService) cancelReservation(c *gin.Context) {
 	reservationID := c.Param("id")
 	err := s.store.CancelReservation(reservationID)
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Reservation not found"})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to find reservation"})
+
+		if err != nil {
+			switch err {
+			case utility.ErrReservationNotFound:
+				c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			case utility.ErrCancellationTooSoon:
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			default:
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process cancellation"})
+			}
+			return
 		}
-		return
-	}
+
 
 	utility.WriteJSON(c.Writer, http.StatusOK, "Reservation successfully canceled", nil)
 }

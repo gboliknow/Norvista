@@ -2,7 +2,7 @@ package api
 
 import (
 	"Norvista/internal/models"
-	"fmt"
+	"Norvista/internal/utility"
 	"time"
 
 	"github.com/google/uuid"
@@ -213,27 +213,29 @@ func (s *Storage) CreateReservation(reservation *models.Reservation) error {
 func (s *Storage) CancelReservation(reservationID string) error {
 	tx := s.db.Begin()
 	var reservation models.Reservation
-	if err := tx.Where("id = ?", reservationID).First(&reservation).Error; err != nil {
+	if err := tx.Preload("Showtime").Where("id = ?", reservationID).First(&reservation).Error; err != nil {
 		tx.Rollback()
 		return err
 	}
 
-	if time.Until(reservation.Showtime.StartTime) > 24*time.Hour {
-		return fmt.Errorf("cancellation allowed only for events within 24 hours")
+	if time.Until(reservation.Showtime.StartTime) <= 24*time.Hour {
+		tx.Rollback()
+		return utility.ErrCancellationTooSoon
 	}
 
 	if err := tx.Delete(&reservation).Error; err != nil {
+
 		tx.Rollback()
-		return err
+		return utility.ErrFailedToDelete
 	}
 
 	if err := tx.Model(&models.Seat{}).Where("id = ?", reservation.SeatID).Update("is_reserved", false).Error; err != nil {
 		tx.Rollback()
-		return err
+		return utility.ErrFailedToUpdateSeat
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		return err
+		return utility.ErrFailedToCommit
 	}
 
 	return nil
